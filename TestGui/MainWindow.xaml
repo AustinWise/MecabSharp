@@ -1,0 +1,18 @@
+﻿<Window x:Class="TestGui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow" Height="350" Width="525">
+	<DockPanel>
+		<TextBox x:Name="txtInput" DockPanel.Dock="Top" TextChanged="txtInput_TextChanged" />
+		<ListView x:Name="lvOutput">
+			<ListView.ItemTemplate>
+				<DataTemplate>
+					<StackPanel Orientation="Horizontal">
+						<TextBlock Text="{Binding Text}" />
+						<TextBlock Text="{Binding Feature}" Margin="3,0,0,0" Foreground="Gray" />
+					</StackPanel>
+				</DataTemplate>
+			</ListView.ItemTemplate>
+		</ListView>
+	</DockPanel>
+</Window>
