@@ -17,19 +17,19 @@ static partial class Interop
         #region Structs
         public enum DictionaryType : int
         {
-            /**
-             * This is a system dictionary.
-             */
+            /// <summary>
+            /// This is a system dictionary.
+            /// </summary>
             SYS_DIC = 0,
 
-            /**
-             * This is a user dictionary.
-             */
+            /// <summary>
+            /// This is a user dictionary.
+            /// </summary>
             USR_DIC = 1,
 
-            /**
-             * This is a unknown word dictionary.
-             */
+            /// <summary>
+            /// This is a unknown word dictionary.
+            /// </summary>
             UNK_DIC = 2,
         }
 
@@ -89,26 +89,29 @@ static partial class Interop
 
         public enum NodeType : byte
         {
-            /**
-             * Normal node defined in the dictionary.
-             */
+            /// <summary>
+            /// Normal node defined in the dictionary.
+            /// </summary>
             NOR = 0,
-            /**
-             * Unknown node not defined in the dictionary.
-             */
+
+            /// <summary>
+            /// Unknown node not defined in the dictionary.
+            /// </summary>
             UNK = 1,
-            /**
-             * Virtual node representing a beginning of the sentence.
-             */
+
+            /// <summary>
+            /// Virtual node representing a beginning of the sentence.
+            /// </summary>
             BOS = 2,
-            /**
-             * Virtual node representing a end of the sentence.
-             */
+
+            /// <summary>
+            /// Virtual node representing a end of the sentence.
+            /// </summary>
             EOS = 3,
 
-            /**
-             * Virtual node representing a end of the N-best enumeration.
-             */
+            /// <summary>
+            /// Virtual node representing a end of the N-best enumeration.
+            /// </summary>
             EON = 4
         }
 
@@ -118,122 +121,133 @@ static partial class Interop
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct mecab_node_t
         {
-            /**
-             * pointer to the previous node.
-             */
+            /// <summary>
+            /// pointer to the previous node.
+            /// </summary>
             public mecab_node_t* prev;
 
-            /**
-             * pointer to the next node.
-             */
+            /// <summary>
+            /// pointer to the next node.
+            /// </summary>
             public mecab_node_t* next;
 
-            /**
-             * pointer to the node which ends at the same position.
-             */
+            /// <summary>
+            /// pointer to the node which ends at the same position.
+            /// </summary>
             public mecab_node_t* enext;
 
-            /**
-             * pointer to the node which starts at the same position.
-             */
+            /// <summary>
+            /// pointer to the node which starts at the same position.
+            /// </summary>
             public mecab_node_t* bnext;
 
-            /**
-             * pointer to the right path.
-             * this value is NULL if MECAB_ONE_BEST mode.
-             */
+            /// <summary>
+            /// pointer to the right path.
+            /// </summary>
+            /// <remarks>
+            /// this value is NULL if MECAB_ONE_BEST mode.
+            /// </remarks>
             public mecab_path_t* rpath;
 
-            /**
-             * pointer to the right path.
-             * this value is NULL if MECAB_ONE_BEST mode.
-             */
+            /// <summary>
+            /// pointer to the right path.
+            /// </summary>
+            /// <remarks>
+            /// this value is NULL if MECAB_ONE_BEST mode.
+            /// </remarks>
             public mecab_path_t* lpath;
 
-            /**
-             * surface string.
-             * this value is not 0 terminated.
-             * You can get the length with length/rlength members.
-             */
+            /// <summary>
+            /// surface string
+            /// </summary>
+            /// <remarks>
+            /// This value is not 0 terminated.
+            /// You can get the length with length/rlength members.
+            /// </remarks>
             public byte* surface;
 
-            /**
-             * feature string
-             */
+            /// <summary>
+            /// feature string
+            /// </summary>
             public byte* feature;
 
-            /**
-             * unique node id
-             */
+            /// <summary>
+            /// unique node id
+            /// </summary>
             public uint id;
 
-            /**
-             * length of the surface form.
-             */
+            /// <summary>
+            /// length of the surface form.
+            /// </summary>
             public ushort length;
 
-            /**
-             * length of the surface form including white space before the morph.
-             */
+            /// <summary>
+            /// length of the surface form including white space before the morph.
+            /// </summary>
             public ushort rlength;
 
-            /**
-             * right attribute id
-             */
+            /// <summary>
+            /// right attribute id
+            /// </summary>
             public ushort rcAttr;
 
-            /**
-             * left attribute id
-             */
+            /// <summary>
+            /// left attribute id
+            /// </summary>
             public ushort lcAttr;
 
-            /**
-             * unique part of speech id. This value is defined in "pos.def" file.
-             */
+            /// <summary>
+            /// unique part of speech id. This value is defined in "pos.def" file.
+            /// </summary>
             public ushort posid;
 
-            /**
-             * character type
-             */
+            /// <summary>
+            /// character type
+            /// </summary>
             public byte char_type;
 
-            /**
-             * status of this model.
-             * This value is MECAB_NOR_NODE, MECAB_UNK_NODE, MECAB_BOS_NODE, MECAB_EOS_NODE, or MECAB_EON_NODE.
-             */
+            /// <summary>
+            /// status of this model
+            /// </summary>
             public NodeType stat;
 
-            /**
-             * set 1 if this node is best node.
-             */
+            /// <summary>
+            /// set 1 if this node is best node.
+            /// </summary>
             public byte isbest;
 
-            /**
-             * forward accumulative log summation.
-             * This value is only available when MECAB_MARGINAL_PROB is passed.
-             */
+            /// <summary>
+            /// forward accumulative log summation.
+            /// </summary>
+            /// <remarks>
+            /// This value is only available when MECAB_MARGINAL_PROB is passed.
+            /// </remarks>
             public float alpha;
 
-            /**
-             * backward accumulative log summation.
-             * This value is only available when MECAB_MARGINAL_PROB is passed.
-             */
+            /// <summary>
+            /// backward accumulative log summation.
+            /// </summary>
+            /// <remarks>
+            /// This value is only available when MECAB_MARGINAL_PROB is passed.
+            /// </remarks>
             public float beta;
 
-            /**
-             * marginal probability.
-             * This value is only available when MECAB_MARGINAL_PROB is passed.
-             */
+            /// <summary>
+            /// marginal probability
+            /// </summary>
+            /// <remarks>
+            /// This value is only available when MECAB_MARGINAL_PROB is passed.
+            /// </remarks>
             public float prob;
 
-            /**
-             * word cost.
-             */
+            /// <summary>
+            /// word cost.
+            /// </summary>
             public short wcost;
 
-            /**
-             * best accumulative cost from bos node to this node.
-             */
+            /// <summary>
+            /// best accumulative cost from bos node to this node.
+            /// </summary>
             public long cost;
         }
 
@@ -243,36 +257,35 @@ static partial class Interop
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct mecab_path_t
         {
-            /**
-             * pointer to the right node
-             */
+            /// <summary>
+            /// pointer to the right node
+            /// </summary>
             public mecab_node_t* rnode;
 
-            /**
-             * pointer to the next right path
-             */
+            /// <summary>
+            /// pointer to the next right path
+            /// </summary>
             public mecab_path_t* rnext;
 
-            /**
-             * pointer to the left node
-             */
+            /// <summary>
+            /// pointer to the left node
+            /// </summary>
             public mecab_node_t* lnode;
 
-            /**
-             * pointer to the next left path
-             */
-
+            /// <summary>
+            /// pointer to the next left path
+            /// </summary>
             public mecab_path_t* lnext;
 
-            /**
-             * local cost
-             */
-            int cost;
+            /// <summary>
+            /// local cost
+            /// </summary>
+            public int cost;
 
-            /**
-             * marginal probability
-             */
-            float prob;
+            /// <summary>
+            /// marginal probability
+            /// </summary>
+            public float prob;
         }
         #endregion
 
