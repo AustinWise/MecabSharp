@@ -68,11 +68,9 @@ namespace Austin.MecabSharp
                     nodePtr = nodePtr->next;
                 }
 
-
                 //if the MecabHandle is closed while reading the returned data we
                 //will get invalid data;
                 GC.KeepAlive(mHand);
-
             }
 
             return ret;
