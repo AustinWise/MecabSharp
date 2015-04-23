@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -9,10 +10,111 @@ using System.Threading.Tasks;
 
 static partial class Interop
 {
-    public static unsafe class Mecab
+    class MecabFunctions
     {
         public const string DLL_NAME = "libmecab.dll";
-        static Interop.Kernel32.DllDirectorySafeHandle sMecabDir;
+
+        readonly Kernel32.LibraryHandle mMecabLibrary;
+        public readonly mecab_version mVersionFunc;
+        public readonly mecab_strerror mStrErrorFunc;
+        public readonly mecab_new mNewFunc;
+        public readonly mecab_sparse_tonode2 mSparseToNode2Func;
+        public readonly mecab_dictionary_info mDictionaryInfoFunc;
+        readonly mecab_destroy mDestroyFunc;
+
+        public MecabFunctions()
+        {
+            var rcPath = (String)Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\MeCab", "mecabrc", String.Empty);
+            if (string.IsNullOrEmpty(rcPath))
+            {
+                throw new Exception("Mecab not installed!");
+            }
+            string binPath, mecabDll;
+            try
+            {
+                var fi = new FileInfo(rcPath);
+                binPath = Path.Combine(fi.Directory.Parent.FullName, "bin");
+                mecabDll = Path.Combine(binPath, DLL_NAME);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Could not find " + DLL_NAME, ex);
+            }
+            if (!File.Exists(mecabDll))
+            {
+                throw new Exception("Mecab DLL does not exist: " + mecabDll);
+            }
+
+            this.mMecabLibrary = Kernel32.LoadLibrary(mecabDll);
+            if (mMecabLibrary.IsInvalid)
+                throw new Win32Exception();
+
+            getProc<mecab_version>(ref mVersionFunc);
+            getProc<mecab_strerror>(ref mStrErrorFunc);
+            getProc<mecab_new>(ref mNewFunc);
+            getProc<mecab_sparse_tonode2>(ref mSparseToNode2Func);
+            getProc<mecab_dictionary_info>(ref mDictionaryInfoFunc);
+            getProc<mecab_destroy>(ref mDestroyFunc);
+
+            //TODO: see if the version check can be loosened up.
+            //If the function signatures or structures changes between versions we could crash.
+            var versionStr = Marshal.PtrToStringAnsi(mVersionFunc());
+            if (versionStr != "0.996")
+            {
+                throw new Exception("Invalid Mecab version!");
+            }
+
+            GC.KeepAlive(mMecabLibrary);
+        }
+
+        public bool Destroy(IntPtr handle)
+        {
+            if (mMecabLibrary.IsInvalid || mMecabLibrary.IsClosed)
+                return false;
+            mDestroyFunc(handle);
+            GC.KeepAlive(mMecabLibrary);
+            return true;
+        }
+
+        void getProc<T>(ref T field)
+        {
+            var delegateType = typeof(T);
+            var functionName = delegateType.Name;
+
+            var functionPointer = Kernel32.GetProcAddress(this.mMecabLibrary, functionName);
+            if (functionPointer == null)
+            {
+                throw new Win32Exception();
+            }
+
+            field = (T)(object)Marshal.GetDelegateForFunctionPointer(functionPointer, delegateType);
+        }
+
+        #region Delegates
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate IntPtr mecab_version();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate IntPtr mecab_strerror(Mecab.MecabHandle mecab);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate Mecab.MecabHandle mecab_new(int argc, IntPtr argv);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public unsafe delegate Mecab.mecab_node_t* mecab_sparse_tonode2(Mecab.MecabHandle mecab, byte* str, int length);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public unsafe delegate Mecab.mecab_dictionary_info_t* mecab_dictionary_info(Mecab.MecabHandle mecab);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void mecab_destroy(IntPtr mecab);
+        #endregion
+    }
+
+    public static class Mecab
+    {
+        //This is a static so that the MecabHandle can get at the destroy function.
+        static MecabFunctions sFunctions;
 
         #region Structs
         public enum DictionaryType : int
@@ -34,7 +136,7 @@ static partial class Interop
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct mecab_dictionary_info_t
+        public unsafe struct mecab_dictionary_info_t
         {
             public string FileName
             {
@@ -119,7 +221,7 @@ static partial class Interop
         /// Node structure
         /// </summary>
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct mecab_node_t
+        public unsafe struct mecab_node_t
         {
             /// <summary>
             /// pointer to the previous node.
@@ -255,7 +357,7 @@ static partial class Interop
         /// Path structure
         /// </summary>
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct mecab_path_t
+        public unsafe struct mecab_path_t
         {
             /// <summary>
             /// pointer to the right node
@@ -290,67 +392,37 @@ static partial class Interop
         #endregion
 
         #region Public Wrappers
+
         static void EnsureMecab()
         {
             lock (typeof(Mecab))
             {
-                if (sMecabDir != null && !sMecabDir.IsInvalid)
+                if (sFunctions != null)
                     return;
-
-                var rcPath = (String)Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\MeCab", "mecabrc", String.Empty);
-                if (string.IsNullOrEmpty(rcPath))
-                {
-                    throw new Exception("Mecab not installed!");
-                }
-                string binPath, mecabDll;
-                try
-                {
-                    var fi = new FileInfo(rcPath);
-                    binPath = Path.Combine(fi.Directory.Parent.FullName, "bin");
-                    mecabDll = Path.Combine(binPath, DLL_NAME);
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception("Could not find " + DLL_NAME, ex);
-                }
-                if (!File.Exists(mecabDll))
-                {
-                    throw new Exception("Mecab DLL does not exist: " + mecabDll);
-                }
-
-                var hand = Kernel32.AddToSearchPath(binPath);
-
-                //TODO: see if the version check can be loosened up.
-                //If the function signatures or structures changes between versions we could crash.
-                var versionStr = Marshal.PtrToStringAnsi(Mecab.mecab_version());
-                if (versionStr != "0.996")
-                {
-                    throw new Exception("Invalid Mecab version!");
-                }
-
-                sMecabDir = hand;
+                sFunctions = new MecabFunctions();
             }
         }
 
         public static MecabHandle CreateNew(int argc, IntPtr argv)
         {
             EnsureMecab();
-            return mecab_new(argc, argv);
+            return sFunctions.mNewFunc(argc, argv);
         }
 
-        public static mecab_dictionary_info_t* DictionaryInfo(MecabHandle mecab)
+        public unsafe static mecab_dictionary_info_t* DictionaryInfo(MecabHandle mecab)
         {
             EnsureMecab();
-            return mecab_dictionary_info(mecab);
+            return sFunctions.mDictionaryInfoFunc(mecab);
         }
 
-        public static mecab_node_t* SparseToNode(MecabHandle mecab, byte* str, int length)
+        public unsafe static mecab_node_t* SparseToNode(MecabHandle mecab, byte* str, int length)
         {
             EnsureMecab();
-            var ret = mecab_sparse_tonode2(mecab, str, length);
+
+            var ret = sFunctions.mSparseToNode2Func(mecab, str, length);
             if (ret == null)
             {
-                var msgPtr = mecab_strerror(mecab);
+                var msgPtr = sFunctions.mStrErrorFunc(mecab);
                 string msg = "Unknown error.";
                 if (msgPtr != null)
                 {
@@ -362,38 +434,23 @@ static partial class Interop
         }
         #endregion
 
-        #region PInvoke
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-        static extern IntPtr mecab_version();
-
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-        static extern IntPtr mecab_strerror(MecabHandle mecab);
-
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-        static extern MecabHandle mecab_new(int argc, IntPtr argv);
-
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-        static extern mecab_node_t* mecab_sparse_tonode2(MecabHandle mecab, byte* str, int length);
-
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-        static extern mecab_dictionary_info_t* mecab_dictionary_info(MecabHandle mecab);
-
-        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-        static extern void mecab_destroy(IntPtr mecab);
-        #endregion
-
-
         public class MecabHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
+            MecabFunctions mFunctions;
+
             protected MecabHandle()
                 : base(true)
             {
+                this.mFunctions = sFunctions;
+                if (mFunctions == null)
+                    throw new Exception("sFunctions not initialized!");
             }
 
             protected override bool ReleaseHandle()
             {
-                Mecab.mecab_destroy(handle);
-                return true;
+                var ret = mFunctions.Destroy(handle);
+                handle = IntPtr.Zero;
+                return ret;
             }
         }
     }
