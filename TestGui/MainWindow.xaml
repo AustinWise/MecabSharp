@@ -8,8 +8,8 @@
 			<ListView.ItemTemplate>
 				<DataTemplate>
 					<StackPanel Orientation="Horizontal">
-						<TextBox Text="{Binding Text, Mode=OneWay}" />
-						<TextBox Text="{Binding Feature, Mode=OneWay}" Margin="3,0,0,0" Foreground="Gray" />
+						<TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" />
+						<TextBox Text="{Binding Feature, Mode=OneWay}" IsReadOnly="True" Margin="3,0,0,0" Foreground="Gray" />
 					</StackPanel>
 				</DataTemplate>
 			</ListView.ItemTemplate>
