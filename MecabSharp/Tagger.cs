@@ -39,38 +39,46 @@ namespace Austin.MecabSharp
             if (strBytes.Length == 0)
                 return ret;
 
-            fixed (byte* bytePtr = strBytes)
+            bool tookReference = false;
+            try
             {
-                //All use of the node pointer has to stay in this fixed statement.
-                //The node ptr refers back to the bytePtr.
-                var nodePtr = Interop.Mecab.SparseToNode(mHand, bytePtr, strBytes.Length);
+                //this add ref is to prevent the hand from being disposed out from under us
+                mHand.DangerousAddRef(ref tookReference);
 
-                while (nodePtr != null)
+                fixed (byte* bytePtr = strBytes)
                 {
-                    switch (nodePtr->stat)
+                    //All use of the node pointer has to stay in this fixed statement.
+                    //The node ptr refers back to the bytePtr.
+                    var nodePtr = Interop.Mecab.SparseToNode(mHand, bytePtr, strBytes.Length);
+
+                    while (nodePtr != null)
                     {
-                        case Interop.Mecab.NodeType.NOR:
-                        case Interop.Mecab.NodeType.UNK:
-                            {
-                                string surface = GetStringFromCharPointer(nodePtr->surface, nodePtr->length);
-                                string feature = GetStringFromCharPointer(nodePtr->feature);
-                                ret.Add(new Node(surface, feature));
-                            }
-                            break;
-                        case Interop.Mecab.NodeType.BOS:
-                            break;
-                        case Interop.Mecab.NodeType.EOS:
-                            break;
-                        default:
-                            throw new MecabException("Unsupported node type: " + nodePtr->stat);
+                        switch (nodePtr->stat)
+                        {
+                            case Interop.Mecab.NodeType.NOR:
+                            case Interop.Mecab.NodeType.UNK:
+                                {
+                                    string surface = GetStringFromCharPointer(nodePtr->surface, nodePtr->length);
+                                    string feature = GetStringFromCharPointer(nodePtr->feature);
+                                    ret.Add(new Node(surface, feature));
+                                }
+                                break;
+                            case Interop.Mecab.NodeType.BOS:
+                                break;
+                            case Interop.Mecab.NodeType.EOS:
+                                break;
+                            default:
+                                throw new MecabException("Unsupported node type: " + nodePtr->stat);
+                        }
+
+                        nodePtr = nodePtr->next;
                     }
-
-                    nodePtr = nodePtr->next;
                 }
-
-                //if the MecabHandle is closed while reading the returned data we
-                //will get invalid data;
-                GC.KeepAlive(mHand);
+            }
+            finally
+            {
+                if (tookReference)
+                    mHand.DangerousRelease();
             }
 
             return ret;
